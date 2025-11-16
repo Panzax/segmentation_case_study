@@ -1,5 +1,5 @@
 # Points to the FinetuneSwinUNETR class in models/meta_arch/swin_unetr.py
-_target_: cell_observatory_finetune.models.meta_arch.swin_unetr.FinetuneSwinUNETR
+_target_: segmentation_case_study.models.meta_arch.swin_unetr.FinetuneSwinUNETR
 
 # These reference variables from the experiment config (pulled in dynamically)
 input_fmt: ${dataset_layout_order}         # I think this should be TZYXC
