@@ -148,3 +148,4 @@ Thumbs.db
 
 # Project specific
 .specstory/
+.cursorindexingignore
