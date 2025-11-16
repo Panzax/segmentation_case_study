@@ -149,3 +149,4 @@ Thumbs.db
 # Project specific
 .specstory/
 .cursorindexingignore
+segmentation_case_study.code-workspace
