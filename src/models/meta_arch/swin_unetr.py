@@ -26,7 +26,12 @@ import torch.utils.checkpoint as checkpoint
 from torch.nn import LayerNorm
 
 from monai.networks.blocks import MLPBlock as Mlp
-from monai.networks.blocks import PatchEmbed, UnetOutBlock, UnetrBasicBlock, UnetrUpBlock
+from monai.networks.blocks import (
+    PatchEmbed,
+    UnetOutBlock,
+    UnetrBasicBlock,
+    UnetrUpBlock,
+)
 from monai.networks.layers import DropPath, trunc_normal_
 from monai.utils import ensure_tuple_rep, look_up_option, optional_import
 
@@ -155,7 +160,9 @@ class SwinUNETR(nn.Module):
             patch_norm=patch_norm,
             use_checkpoint=use_checkpoint,
             spatial_dims=spatial_dims,
-            downsample=look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample,
+            downsample=look_up_option(downsample, MERGING_MODE)
+            if isinstance(downsample, str)
+            else downsample,
             use_v2=use_v2,
         )
 
@@ -258,7 +265,11 @@ class SwinUNETR(nn.Module):
             res_block=True,
         )
 
-        self.out = UnetOutBlock(spatial_dims=spatial_dims, in_channels=feature_size, out_channels=out_channels)
+        self.out = UnetOutBlock(
+            spatial_dims=spatial_dims,
+            in_channels=feature_size,
+            out_channels=out_channels,
+        )
 
     def load_from(self, weights):
         layers1_0: BasicLayer = self.swinViT.layers1[0]  # type: ignore[assignment]
@@ -268,14 +279,20 @@ class SwinUNETR(nn.Module):
         wstate = weights["state_dict"]
 
         with torch.no_grad():
-            self.swinViT.patch_embed.proj.weight.copy_(wstate["module.patch_embed.proj.weight"])
-            self.swinViT.patch_embed.proj.bias.copy_(wstate["module.patch_embed.proj.bias"])
+            self.swinViT.patch_embed.proj.weight.copy_(
+                wstate["module.patch_embed.proj.weight"]
+            )
+            self.swinViT.patch_embed.proj.bias.copy_(
+                wstate["module.patch_embed.proj.bias"]
+            )
             for bname, block in layers1_0.blocks.named_children():
                 block.load_from(weights, n_block=bname, layer="layers1")  # type: ignore[operator]
 
             if layers1_0.downsample is not None:
                 d = layers1_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers1.0.downsample.reduction.weight"])  # type: ignore
+                d.reduction.weight.copy_(
+                    wstate["module.layers1.0.downsample.reduction.weight"]
+                )  # type: ignore
                 d.norm.weight.copy_(wstate["module.layers1.0.downsample.norm.weight"])  # type: ignore
                 d.norm.bias.copy_(wstate["module.layers1.0.downsample.norm.bias"])  # type: ignore
 
@@ -284,7 +301,9 @@ class SwinUNETR(nn.Module):
 
             if layers2_0.downsample is not None:
                 d = layers2_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers2.0.downsample.reduction.weight"])  # type: ignore
+                d.reduction.weight.copy_(
+                    wstate["module.layers2.0.downsample.reduction.weight"]
+                )  # type: ignore
                 d.norm.weight.copy_(wstate["module.layers2.0.downsample.norm.weight"])  # type: ignore
                 d.norm.bias.copy_(wstate["module.layers2.0.downsample.norm.bias"])  # type: ignore
 
@@ -293,7 +312,9 @@ class SwinUNETR(nn.Module):
 
             if layers3_0.downsample is not None:
                 d = layers3_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers3.0.downsample.reduction.weight"])  # type: ignore
+                d.reduction.weight.copy_(
+                    wstate["module.layers3.0.downsample.reduction.weight"]
+                )  # type: ignore
                 d.norm.weight.copy_(wstate["module.layers3.0.downsample.norm.weight"])  # type: ignore
                 d.norm.bias.copy_(wstate["module.layers3.0.downsample.norm.bias"])  # type: ignore
 
@@ -302,7 +323,9 @@ class SwinUNETR(nn.Module):
 
             if layers4_0.downsample is not None:
                 d = layers4_0.downsample
-                d.reduction.weight.copy_(wstate["module.layers4.0.downsample.reduction.weight"])  # type: ignore
+                d.reduction.weight.copy_(
+                    wstate["module.layers4.0.downsample.reduction.weight"]
+                )  # type: ignore
                 d.norm.weight.copy_(wstate["module.layers4.0.downsample.norm.weight"])  # type: ignore
                 d.norm.bias.copy_(wstate["module.layers4.0.downsample.norm.bias"])  # type: ignore
 
@@ -359,12 +382,25 @@ def window_partition(x, window_size):
             c,
         )
         windows = (
-            x.permute(0, 1, 3, 5, 2, 4, 6, 7).contiguous().view(-1, window_size[0] * window_size[1] * window_size[2], c)
+            x.permute(0, 1, 3, 5, 2, 4, 6, 7)
+            .contiguous()
+            .view(-1, window_size[0] * window_size[1] * window_size[2], c)
         )
     else:  # if len(x_shape) == 4:
         b, h, w, c = x.shape
-        x = x.view(b, h // window_size[0], window_size[0], w // window_size[1], window_size[1], c)
-        windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size[0] * window_size[1], c)
+        x = x.view(
+            b,
+            h // window_size[0],
+            window_size[0],
+            w // window_size[1],
+            window_size[1],
+            c,
+        )
+        windows = (
+            x.permute(0, 1, 3, 2, 4, 5)
+            .contiguous()
+            .view(-1, window_size[0] * window_size[1], c)
+        )
 
     return windows
 
@@ -396,7 +432,14 @@ def window_reverse(windows, window_size, dims):
 
     elif len(dims) == 3:
         b, h, w = dims
-        x = windows.view(b, h // window_size[0], w // window_size[1], window_size[0], window_size[1], -1)
+        x = windows.view(
+            b,
+            h // window_size[0],
+            w // window_size[1],
+            window_size[0],
+            window_size[1],
+            -1,
+        )
         x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(b, h, w, -1)
     return x
 
@@ -466,7 +509,9 @@ class WindowAttention(nn.Module):
         if len(self.window_size) == 3:
             self.relative_position_bias_table = nn.Parameter(
                 torch.zeros(
-                    (2 * self.window_size[0] - 1) * (2 * self.window_size[1] - 1) * (2 * self.window_size[2] - 1),
+                    (2 * self.window_size[0] - 1)
+                    * (2 * self.window_size[1] - 1)
+                    * (2 * self.window_size[2] - 1),
                     num_heads,
                 )
             )
@@ -474,7 +519,9 @@ class WindowAttention(nn.Module):
             coords_h = torch.arange(self.window_size[1])
             coords_w = torch.arange(self.window_size[2])
             if mesh_args is not None:
-                coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w, indexing="ij"))
+                coords = torch.stack(
+                    torch.meshgrid(coords_d, coords_h, coords_w, indexing="ij")
+                )
             else:
                 coords = torch.stack(torch.meshgrid(coords_d, coords_h, coords_w))
             coords_flatten = torch.flatten(coords, 1)
@@ -483,11 +530,15 @@ class WindowAttention(nn.Module):
             relative_coords[:, :, 0] += self.window_size[0] - 1
             relative_coords[:, :, 1] += self.window_size[1] - 1
             relative_coords[:, :, 2] += self.window_size[2] - 1
-            relative_coords[:, :, 0] *= (2 * self.window_size[1] - 1) * (2 * self.window_size[2] - 1)
+            relative_coords[:, :, 0] *= (2 * self.window_size[1] - 1) * (
+                2 * self.window_size[2] - 1
+            )
             relative_coords[:, :, 1] *= 2 * self.window_size[2] - 1
         elif len(self.window_size) == 2:
             self.relative_position_bias_table = nn.Parameter(
-                torch.zeros((2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads)
+                torch.zeros(
+                    (2 * window_size[0] - 1) * (2 * window_size[1] - 1), num_heads
+                )
             )
             coords_h = torch.arange(self.window_size[0])
             coords_w = torch.arange(self.window_size[1])
@@ -513,7 +564,11 @@ class WindowAttention(nn.Module):
 
     def forward(self, x, mask):
         b, n, c = x.shape
-        qkv = self.qkv(x).reshape(b, n, 3, self.num_heads, c // self.num_heads).permute(2, 0, 3, 1, 4)
+        qkv = (
+            self.qkv(x)
+            .reshape(b, n, 3, self.num_heads, c // self.num_heads)
+            .permute(2, 0, 3, 1, 4)
+        )
         q, k, v = qkv[0], qkv[1], qkv[2]
         q = q * self.scale
         attn = q @ k.transpose(-2, -1)
@@ -524,7 +579,9 @@ class WindowAttention(nn.Module):
         attn = attn + relative_position_bias.unsqueeze(0)
         if mask is not None:
             nw = mask.shape[0]
-            attn = attn.view(b // nw, nw, self.num_heads, n, n) + mask.unsqueeze(1).unsqueeze(0)
+            attn = attn.view(b // nw, nw, self.num_heads, n, n) + mask.unsqueeze(
+                1
+            ).unsqueeze(0)
             attn = attn.view(-1, self.num_heads, n, n)
             attn = self.softmax(attn)
         else:
@@ -596,14 +653,22 @@ class SwinTransformerBlock(nn.Module):
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         mlp_hidden_dim = int(dim * mlp_ratio)
-        self.mlp = Mlp(hidden_size=dim, mlp_dim=mlp_hidden_dim, act=act_layer, dropout_rate=drop, dropout_mode="swin")
+        self.mlp = Mlp(
+            hidden_size=dim,
+            mlp_dim=mlp_hidden_dim,
+            act=act_layer,
+            dropout_rate=drop,
+            dropout_mode="swin",
+        )
 
     def forward_part1(self, x, mask_matrix):
         x_shape = x.size()
         x = self.norm1(x)
         if len(x_shape) == 5:
             b, d, h, w, c = x.shape
-            window_size, shift_size = get_window_size((d, h, w), self.window_size, self.shift_size)
+            window_size, shift_size = get_window_size(
+                (d, h, w), self.window_size, self.shift_size
+            )
             pad_l = pad_t = pad_d0 = 0
             pad_d1 = (window_size[0] - d % window_size[0]) % window_size[0]
             pad_b = (window_size[1] - h % window_size[1]) % window_size[1]
@@ -614,7 +679,9 @@ class SwinTransformerBlock(nn.Module):
 
         else:  # elif len(x_shape) == 4
             b, h, w, c = x.shape
-            window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
+            window_size, shift_size = get_window_size(
+                (h, w), self.window_size, self.shift_size
+            )
             pad_l = pad_t = 0
             pad_b = (window_size[0] - h % window_size[0]) % window_size[0]
             pad_r = (window_size[1] - w % window_size[1]) % window_size[1]
@@ -624,9 +691,15 @@ class SwinTransformerBlock(nn.Module):
 
         if any(i > 0 for i in shift_size):
             if len(x_shape) == 5:
-                shifted_x = torch.roll(x, shifts=(-shift_size[0], -shift_size[1], -shift_size[2]), dims=(1, 2, 3))
+                shifted_x = torch.roll(
+                    x,
+                    shifts=(-shift_size[0], -shift_size[1], -shift_size[2]),
+                    dims=(1, 2, 3),
+                )
             elif len(x_shape) == 4:
-                shifted_x = torch.roll(x, shifts=(-shift_size[0], -shift_size[1]), dims=(1, 2))
+                shifted_x = torch.roll(
+                    x, shifts=(-shift_size[0], -shift_size[1]), dims=(1, 2)
+                )
             attn_mask = mask_matrix
         else:
             shifted_x = x
@@ -637,9 +710,15 @@ class SwinTransformerBlock(nn.Module):
         shifted_x = window_reverse(attn_windows, window_size, dims)
         if any(i > 0 for i in shift_size):
             if len(x_shape) == 5:
-                x = torch.roll(shifted_x, shifts=(shift_size[0], shift_size[1], shift_size[2]), dims=(1, 2, 3))
+                x = torch.roll(
+                    shifted_x,
+                    shifts=(shift_size[0], shift_size[1], shift_size[2]),
+                    dims=(1, 2, 3),
+                )
             elif len(x_shape) == 4:
-                x = torch.roll(shifted_x, shifts=(shift_size[0], shift_size[1]), dims=(1, 2))
+                x = torch.roll(
+                    shifted_x, shifts=(shift_size[0], shift_size[1]), dims=(1, 2)
+                )
         else:
             x = shifted_x
 
@@ -676,8 +755,12 @@ class SwinTransformerBlock(nn.Module):
         with torch.no_grad():
             self.norm1.weight.copy_(weights["state_dict"][root + block_names[0]])
             self.norm1.bias.copy_(weights["state_dict"][root + block_names[1]])
-            self.attn.relative_position_bias_table.copy_(weights["state_dict"][root + block_names[2]])
-            self.attn.relative_position_index.copy_(weights["state_dict"][root + block_names[3]])  # type: ignore[operator]
+            self.attn.relative_position_bias_table.copy_(
+                weights["state_dict"][root + block_names[2]]
+            )
+            self.attn.relative_position_index.copy_(
+                weights["state_dict"][root + block_names[3]]
+            )  # type: ignore[operator]
             self.attn.qkv.weight.copy_(weights["state_dict"][root + block_names[4]])
             self.attn.qkv.bias.copy_(weights["state_dict"][root + block_names[5]])
             self.attn.proj.weight.copy_(weights["state_dict"][root + block_names[6]])
@@ -692,7 +775,9 @@ class SwinTransformerBlock(nn.Module):
     def forward(self, x, mask_matrix):
         shortcut = x
         if self.use_checkpoint:
-            x = checkpoint.checkpoint(self.forward_part1, x, mask_matrix, use_reentrant=False)
+            x = checkpoint.checkpoint(
+                self.forward_part1, x, mask_matrix, use_reentrant=False
+            )
         else:
             x = self.forward_part1(x, mask_matrix)
         x = shortcut + self.drop_path(x)
@@ -711,7 +796,12 @@ class PatchMergingV2(nn.Module):
     https://github.com/microsoft/Swin-Transformer
     """
 
-    def __init__(self, dim: int, norm_layer: type[LayerNorm] = nn.LayerNorm, spatial_dims: int = 3) -> None:
+    def __init__(
+        self,
+        dim: int,
+        norm_layer: type[LayerNorm] = nn.LayerNorm,
+        spatial_dims: int = 3,
+    ) -> None:
         """
         Args:
             dim: number of feature channels.
@@ -736,7 +826,11 @@ class PatchMergingV2(nn.Module):
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2, 0, d % 2))
             x = torch.cat(
-                [x[:, i::2, j::2, k::2, :] for i, j, k in itertools.product(range(2), range(2), range(2))], -1
+                [
+                    x[:, i::2, j::2, k::2, :]
+                    for i, j, k in itertools.product(range(2), range(2), range(2))
+                ],
+                -1,
             )
 
         elif len(x_shape) == 4:
@@ -744,7 +838,10 @@ class PatchMergingV2(nn.Module):
             pad_input = (h % 2 == 1) or (w % 2 == 1)
             if pad_input:
                 x = F.pad(x, (0, 0, 0, w % 2, 0, h % 2))
-            x = torch.cat([x[:, j::2, i::2, :] for i, j in itertools.product(range(2), range(2))], -1)
+            x = torch.cat(
+                [x[:, j::2, i::2, :] for i, j in itertools.product(range(2), range(2))],
+                -1,
+            )
 
         x = self.norm(x)
         x = self.reduction(x)
@@ -799,24 +896,46 @@ def compute_mask(dims, window_size, shift_size, device):
     if len(dims) == 3:
         d, h, w = dims
         img_mask = torch.zeros((1, d, h, w, 1), device=device)
-        for d in slice(-window_size[0]), slice(-window_size[0], -shift_size[0]), slice(-shift_size[0], None):
-            for h in slice(-window_size[1]), slice(-window_size[1], -shift_size[1]), slice(-shift_size[1], None):
-                for w in slice(-window_size[2]), slice(-window_size[2], -shift_size[2]), slice(-shift_size[2], None):
+        for d in (
+            slice(-window_size[0]),
+            slice(-window_size[0], -shift_size[0]),
+            slice(-shift_size[0], None),
+        ):
+            for h in (
+                slice(-window_size[1]),
+                slice(-window_size[1], -shift_size[1]),
+                slice(-shift_size[1], None),
+            ):
+                for w in (
+                    slice(-window_size[2]),
+                    slice(-window_size[2], -shift_size[2]),
+                    slice(-shift_size[2], None),
+                ):
                     img_mask[:, d, h, w, :] = cnt
                     cnt += 1
 
     elif len(dims) == 2:
         h, w = dims
         img_mask = torch.zeros((1, h, w, 1), device=device)
-        for h in slice(-window_size[0]), slice(-window_size[0], -shift_size[0]), slice(-shift_size[0], None):
-            for w in slice(-window_size[1]), slice(-window_size[1], -shift_size[1]), slice(-shift_size[1], None):
+        for h in (
+            slice(-window_size[0]),
+            slice(-window_size[0], -shift_size[0]),
+            slice(-shift_size[0], None),
+        ):
+            for w in (
+                slice(-window_size[1]),
+                slice(-window_size[1], -shift_size[1]),
+                slice(-shift_size[1], None),
+            ):
                 img_mask[:, h, w, :] = cnt
                 cnt += 1
 
     mask_windows = window_partition(img_mask, window_size)
     mask_windows = mask_windows.squeeze(-1)
     attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-    attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+    attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(
+        attn_mask == 0, float(0.0)
+    )
 
     return attn_mask
 
@@ -877,7 +996,9 @@ class BasicLayer(nn.Module):
                     qkv_bias=qkv_bias,
                     drop=drop,
                     attn_drop=attn_drop,
-                    drop_path=drop_path[i] if isinstance(drop_path, list) else drop_path,
+                    drop_path=drop_path[i]
+                    if isinstance(drop_path, list)
+                    else drop_path,
                     norm_layer=norm_layer,
                     use_checkpoint=use_checkpoint,
                 )
@@ -886,13 +1007,17 @@ class BasicLayer(nn.Module):
         )
         self.downsample = downsample
         if callable(self.downsample):
-            self.downsample = downsample(dim=dim, norm_layer=norm_layer, spatial_dims=len(self.window_size))
+            self.downsample = downsample(
+                dim=dim, norm_layer=norm_layer, spatial_dims=len(self.window_size)
+            )
 
     def forward(self, x):
         x_shape = x.size()
         if len(x_shape) == 5:
             b, c, d, h, w = x_shape
-            window_size, shift_size = get_window_size((d, h, w), self.window_size, self.shift_size)
+            window_size, shift_size = get_window_size(
+                (d, h, w), self.window_size, self.shift_size
+            )
             x = rearrange(x, "b c d h w -> b d h w c")
             dp = int(np.ceil(d / window_size[0])) * window_size[0]
             hp = int(np.ceil(h / window_size[1])) * window_size[1]
@@ -907,7 +1032,9 @@ class BasicLayer(nn.Module):
 
         elif len(x_shape) == 4:
             b, c, h, w = x_shape
-            window_size, shift_size = get_window_size((h, w), self.window_size, self.shift_size)
+            window_size, shift_size = get_window_size(
+                (h, w), self.window_size, self.shift_size
+            )
             x = rearrange(x, "b c h w -> b h w c")
             hp = int(np.ceil(h / window_size[0])) * window_size[0]
             wp = int(np.ceil(w / window_size[1])) * window_size[1]
@@ -997,7 +1124,11 @@ class SwinTransformer(nn.Module):
             self.layers2c = nn.ModuleList()
             self.layers3c = nn.ModuleList()
             self.layers4c = nn.ModuleList()
-        down_sample_mod = look_up_option(downsample, MERGING_MODE) if isinstance(downsample, str) else downsample
+        down_sample_mod = (
+            look_up_option(downsample, MERGING_MODE)
+            if isinstance(downsample, str)
+            else downsample
+        )
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
                 dim=int(embed_dim * 2**i_layer),
@@ -1130,8 +1261,8 @@ def filter_swinunetr(key, value):
 
 
 ##############################################################
-# Wrapper to integrate the swin_unetr model with the 
-# Cell Observatory fine-tuning repository 
+# Wrapper to integrate the swin_unetr model with the
+# Cell Observatory fine-tuning repository
 ##############################################################
 
 from typing import Literal, Optional
@@ -1140,25 +1271,25 @@ from cell_observatory_platform.models.patch_embeddings import calc_num_patches
 from cell_observatory_finetune.models.layers.utils import pack_time, unpack_time
 
 CONFIGS = {
-    'swin-unetr-tiny': {
-        'feature_size': 24,
-        'depths': (2, 2, 2, 2),
-        'num_heads': (3, 6, 12, 24),
+    "swin-unetr-tiny": {
+        "feature_size": 24,
+        "depths": (2, 2, 2, 2),
+        "num_heads": (3, 6, 12, 24),
     },
-    'swin-unetr-small': {
-        'feature_size': 48,
-        'depths': (2, 2, 6, 2),
-        'num_heads': (3, 6, 12, 24),
+    "swin-unetr-small": {
+        "feature_size": 48,
+        "depths": (2, 2, 6, 2),
+        "num_heads": (3, 6, 12, 24),
     },
-    'swin-unetr-base': {
-        'feature_size': 48,
-        'depths': (2, 2, 2, 2),
-        'num_heads': (3, 6, 12, 24),
+    "swin-unetr-base": {
+        "feature_size": 48,
+        "depths": (2, 2, 2, 2),
+        "num_heads": (3, 6, 12, 24),
     },
-    'swin-unetr-large': {
-        'feature_size': 96,
-        'depths': (2, 2, 2, 2),
-        'num_heads': (3, 6, 12, 24),
+    "swin-unetr-large": {
+        "feature_size": 96,
+        "depths": (2, 2, 2, 2),
+        "num_heads": (3, 6, 12, 24),
     },
 }
 
@@ -1168,24 +1299,23 @@ class FinetuneSwinUNETR(nn.Module):
     This class adapts the MONAI SwinUNETR model to work with the Cell Observatory
     fine-tuning framework's data format and task requirements.
     """
-    
+
     def __init__(
         self,
         decoder_args: dict,
-        decoder: Literal['vit', 'linear', 'dense_predictor'],
-        task: Literal['channel_split', 
-                      'upsample_time', 
-                      'upsample_space', 
-                      'upsample_spacetime'],
+        decoder: Literal["vit", "linear", "dense_predictor"],
+        task: Literal[
+            "channel_split", "upsample_time", "upsample_space", "upsample_spacetime"
+        ],
         output_channels: Optional[int],
         model_template: Literal[
-            'swin-unetr',  # custom use feature_size, depths, num_heads to config model
-            'swin-unetr-tiny',
-            'swin-unetr-small',
-            'swin-unetr-base',
-            'swin-unetr-large',
-        ] = 'swin-unetr',
-        input_fmt='TZYXC',
+            "swin-unetr",  # custom use feature_size, depths, num_heads to config model
+            "swin-unetr-tiny",
+            "swin-unetr-small",
+            "swin-unetr-base",
+            "swin-unetr-large",
+        ] = "swin-unetr",
+        input_fmt="TZYXC",
         input_shape=(16, 128, 128, 128, 2),
         patch_shape=(4, 16, 16, 16),
         feature_size: int = 48,
@@ -1205,7 +1335,7 @@ class FinetuneSwinUNETR(nn.Module):
         spatial_dims: int = 3,
         downsample: str = "merging",
         use_v2: bool = False,
-        loss_fn: str = 'l2_masked'
+        loss_fn: str = "l2_masked",
     ):
         """
         Args:
@@ -1237,32 +1367,32 @@ class FinetuneSwinUNETR(nn.Module):
             loss_fn: Loss function name
         """
         super().__init__()
-        
+
         # Apply model template config if specified
         if model_template in CONFIGS.keys():
             config = CONFIGS[model_template]
-            self.feature_size = config['feature_size']
-            self.depths = config['depths']
-            self.num_heads = config['num_heads']
+            self.feature_size = config["feature_size"]
+            self.depths = config["depths"]
+            self.num_heads = config["num_heads"]
         else:
             self.feature_size = feature_size
             self.depths = depths
             self.num_heads = num_heads
-        
+
         self.input_fmt = input_fmt
         self.input_shape = input_shape
         self.patch_shape = patch_shape
-        
+
         # Parse input format to extract dimensions
         axis_to_value = dict(zip(input_fmt, input_shape))
-        self.in_chans = axis_to_value['C']
+        self.in_chans = axis_to_value["C"]
         self.num_frames = axis_to_value.get("T", None)
-        
+
         self.task = task
         self.output_channels = output_channels
         self.normalize = normalize
         self.spatial_dims = spatial_dims
-        
+
         # Determine output channels for the model
         if self.task == "channel_split":
             model_out_channels = self.output_channels
@@ -1270,13 +1400,13 @@ class FinetuneSwinUNETR(nn.Module):
             model_out_channels = self.in_chans
         else:
             raise ValueError(f"Unknown task: {self.task}")
-        
+
         # NOTE: SwinUNETR expects input in format [B, C, spatial_dims...]
         # Framework uses flexible format (TZYXC, ZYXC, etc.)
         # We'll need to handle tensor reshaping/transposition
-        
+
         # Determine spatial patch size (skip time dimension if present)
-        if 'T' in self.input_fmt:
+        if "T" in self.input_fmt:
             # patch_shape is [T_patch, Z_patch, Y_patch, X_patch]
             # Use spatial patch size (all spatial dims should have same patch size)
             spatial_patch_size = patch_shape[1]
@@ -1286,7 +1416,7 @@ class FinetuneSwinUNETR(nn.Module):
                 spatial_patch_size = patch_shape[1]
             else:
                 spatial_patch_size = patch_shape[0]
-        
+
         # Instantiate the base SwinUNETR model
         self.swin_unetr = SwinUNETR(
             in_channels=self.in_chans,
@@ -1310,21 +1440,21 @@ class FinetuneSwinUNETR(nn.Module):
             downsample=downsample,
             use_v2=use_v2,
         )
-        
+
         # Setup loss function
         self.loss_fn = get_loss_fn(loss_fn)
-    
+
     def _convert_tensor_format(self, x):
         """
         Convert tensor from framework format to model format using existing utilities.
-        
+
         Handles both 3D and 4D data:
         - 3D: [B, Z, Y, X, C] -> [B, C, Z, Y, X]
         - 4D: [B, T, Z, Y, X, C] -> [B*T, C, Z, Y, X]
-        
+
         Args:
             x: Input tensor in framework format
-            
+
         Returns:
             tuple: (converted_tensor, batch_size, time_steps)
                 - converted_tensor: Tensor in model format [B, C, ...] or [B*T, C, ...]
@@ -1332,8 +1462,8 @@ class FinetuneSwinUNETR(nn.Module):
                 - time_steps: Original time steps (None if no time dimension)
         """
         B = x.shape[0]
-        
-        if 'T' in self.input_fmt:
+
+        if "T" in self.input_fmt:
             # 4D data with time: [B, T, Z, Y, X, C] -> [B*T, C, Z, Y, X]
             # Use existing pack_time utility
             x, B, T = pack_time(x, input_format=self.input_fmt, output_format="TCZYX")
@@ -1344,22 +1474,24 @@ class FinetuneSwinUNETR(nn.Module):
                 # Move channel from last to second position
                 x = x.permute(0, 4, 1, 2, 3)
             else:
-                raise ValueError(f"Unsupported input format for 3D data: {self.input_fmt}")
+                raise ValueError(
+                    f"Unsupported input format for 3D data: {self.input_fmt}"
+                )
             return x, B, None
-    
+
     def _convert_tensor_back(self, x, B, T):
         """
         Convert tensor from model format back to framework format using existing utilities.
-        
+
         Handles both 3D and 4D data:
         - 3D: [B, C, Z, Y, X] -> [B, Z, Y, X, C]
         - 4D: [B*T, C, Z, Y, X] -> [B, T, Z, Y, X, C]
-        
+
         Args:
             x: Tensor in model format
             B: Original batch size
             T: Original time steps (None if no time dimension)
-            
+
         Returns:
             Tensor in framework format
         """
@@ -1374,9 +1506,11 @@ class FinetuneSwinUNETR(nn.Module):
                 # Move channel from second to last position
                 x = x.permute(0, 2, 3, 4, 1)
             else:
-                raise ValueError(f"Unsupported input format for 3D data: {self.input_fmt}")
+                raise ValueError(
+                    f"Unsupported input format for 3D data: {self.input_fmt}"
+                )
             return x
-    
+
     @torch.jit.ignore
     def get_num_patches(self):
         """Calculate number of patches for loss computation."""
@@ -1386,71 +1520,79 @@ class FinetuneSwinUNETR(nn.Module):
             patch_shape=self.patch_shape,
         )
         return num_patches
-    
+
     def forward(self, data_sample: dict):
         """
         Forward pass for training.
-        
+
         Args:
             data_sample: Dictionary containing:
                 - 'data_tensor': Input tensor
                 - 'metainfo': Dictionary with targets and masks
-        
+
         Returns:
             Tuple of (loss_dict, predictions)
         """
-        inputs, meta = data_sample['data_tensor'], data_sample['metainfo']
-        targets = meta.get('targets', [None])[0]
+        inputs, meta = data_sample["data_tensor"], data_sample["metainfo"]
+        targets = meta.get("targets", [None])[0]
         masks = meta.get("masks", [None])[0]
-        
+
         # Convert input tensor format and track original dimensions
         inputs_converted, B, T = self._convert_tensor_format(inputs)
-        
+
         # Forward through SwinUNETR
         predictions = self.swin_unetr(inputs_converted)
-        
+
         # Convert predictions back to framework format
         predictions = self._convert_tensor_back(predictions, B, T)
-        
+
         # Compute task-specific loss
         if self.task == "channel_split":
-            loss = self.loss_fn(predictions, targets, num_patches=self.get_num_patches())
+            loss = self.loss_fn(
+                predictions, targets, num_patches=self.get_num_patches()
+            )
         elif self.task == "upsample_space":
-            loss = self.loss_fn(predictions, targets, num_patches=self.get_num_patches())
+            loss = self.loss_fn(
+                predictions, targets, num_patches=self.get_num_patches()
+            )
         elif self.task == "upsample_time":
             # For time upsampling, only supervise masked timepoints
             # This would need additional logic similar to MAE
-            raise NotImplementedError("upsample_time task not yet implemented for SwinUNETR")
+            raise NotImplementedError(
+                "upsample_time task not yet implemented for SwinUNETR"
+            )
         elif self.task == "upsample_spacetime":
             # For spacetime upsampling
-            raise NotImplementedError("upsample_spacetime task not yet implemented for SwinUNETR")
+            raise NotImplementedError(
+                "upsample_spacetime task not yet implemented for SwinUNETR"
+            )
         else:
             raise ValueError(f"Unknown task: {self.task}")
-        
+
         loss_dict = {
             "step_loss": loss,
         }
         return loss_dict, predictions
-    
+
     def predict(self, data_sample: dict):
         """
         Inference-only forward pass.
-        
+
         Args:
             data_sample: Dictionary containing 'data_tensor'
-        
+
         Returns:
             Predictions tensor
         """
-        inputs = data_sample['data_tensor']
-        
+        inputs = data_sample["data_tensor"]
+
         # Convert input tensor format and track original dimensions
         inputs_converted, B, T = self._convert_tensor_format(inputs)
-        
+
         # Forward through SwinUNETR
         predictions = self.swin_unetr(inputs_converted)
-        
+
         # Convert predictions back to framework format
         predictions = self._convert_tensor_back(predictions, B, T)
-        
+
         return predictions
