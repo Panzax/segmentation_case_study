@@ -1,11 +1,13 @@
 # @package _global_
 defaults:
-  - /tasks/channel_split                                    # Task: predict additional channels
+  #TODO: Confirm task name with Hugo
+  - /tasks/instance_segmentation 
   - /paths/abc                                              # File paths for ABC cluster
   - /clusters/local                                         # Cluster config (GPUs, CPUs, memory)
   - /datasets/pretrain_dataset_ray                          # Dataset loader (Ray-based)
-  - /datasets/preprocessor/channel_split_preprocessor       # Data preprocessing for channel_split
-  - /models/swin-unetr/swin_unetr_base                      # <- Our Swin-UNETR model config
+  # TODO: Confirm preprocessor name with Hugo
+  - /datasets/preprocessor/instance_segmentation_preprocessor
+  # /models/swin-unetr/swin_unetr_base (see below)
   - /hooks/hooks                                            # Training hooks (logging, checkpointing, etc.)
   - /checkpoint/checkpoint                                  # Checkpoint saving/loading settings
   - /loggers/loggers                                        # Logging (WandB, TensorBoard, etc.)
@@ -18,7 +20,7 @@ defaults:
   - _self_                                                  # This file's configs override all above
 
 # Experiment metadata
-experiment_name: test_swin_unetr_channel_split              # Used for saving checkpoints/logs
+experiment_name: test_swin_unetr_basic_test             # Used for saving checkpoints/logs
 wandb_project: test_finetune_swinunetr                      # WandB project name
 
 # Core settings
