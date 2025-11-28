@@ -4,3 +4,7 @@
 [submodule "cell_observatory_platform"]
 	path = cell_observatory_platform
 	url = https://github.com/cell-observatory/cell_observatory_platform
+[submodule "monai"]
+	path = monai
+	url = https://github.com/Panzax/MONAI.git
+	branch = dev

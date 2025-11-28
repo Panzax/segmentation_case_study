@@ -1,0 +1,14 @@
+segment_3d/
+**/segment_3d/**
+/clusterfs/nvme/segment_3d/
+segmentation_case_study/segment_3d/
+**/segment_3d
+segment_3d
+*.env
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+*.env.development
+*.env.test
+*.env.production
