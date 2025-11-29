@@ -304,8 +304,8 @@ def main():
     logger.info("=" * 60)
 
     # Run inference (iterate over generator)
+    results = []
     try:
-        results = []
         for result in worker.inference():
             results.append(result)
             logger.info(f"Processed image {result.image_id + 1}/{len(images_filepaths)}")
