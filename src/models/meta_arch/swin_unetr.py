@@ -1335,7 +1335,7 @@ class FinetuneSwinUNETR(nn.Module):
         spatial_dims: int = 3,
         downsample: str = "merging",
         use_v2: bool = False,
-        loss_fn: str = "l2_masked",
+        loss_fn: str = "generalized_dice",
     ):
         """
         Args:
