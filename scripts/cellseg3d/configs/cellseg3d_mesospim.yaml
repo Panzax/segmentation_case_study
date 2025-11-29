@@ -1,0 +1,42 @@
+# Example configuration for training SwinUNETR on mesoSPIM dataset
+# Based on CellSeg3D paper hyperparameters
+
+# Dataset paths
+images_dir: "/clusterfs/nvme/segment_3D/tests/datasets/CellSeg3D_mesoSPIM/DATASET_WITH_GT"
+labels_dir: "/clusterfs/nvme/segment_3D/tests/datasets/CellSeg3D_mesoSPIM/DATASET_WITH_GT/labels"
+output_dir: "/clusterfs/nvme/segment_3D/tests/outputs/mesospim_swinunetr"
+
+# Model configuration
+model_name: "SwinUNetR"
+use_pretrained: false  # Set to true to use CellSeg3D pretrained weights
+
+# Training hyperparameters (aligned with CellSeg3D paper)
+max_epochs: 50
+batch_size: 1  # Adjust based on GPU memory
+learning_rate: 1e-3
+training_percent: 0.8  # 80% train, 20% validation
+validation_interval: 2  # Validate every 2 epochs
+
+# Data sampling (patch-based training)
+sampling: true
+num_samples: 2  # Number of patches per volume
+sample_size: [64, 64, 64]  # Patch size [Z, Y, X]
+
+# Data augmentation
+augmentation: true
+num_workers: 4
+
+# Loss function
+loss_function: "DiceCE"  # Options: Dice, Generalized Dice, DiceCE, Tversky
+
+# Learning rate scheduler
+scheduler_factor: 0.5
+scheduler_patience: 10
+
+# Deterministic training
+deterministic: true
+seed: 34936339
+
+# Device
+device: "cuda:0"
+

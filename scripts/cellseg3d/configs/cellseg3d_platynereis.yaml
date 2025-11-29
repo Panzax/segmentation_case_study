@@ -1,0 +1,42 @@
+# Example configuration for training SwinUNETR on Platynereis dataset
+# Based on CellSeg3D paper hyperparameters
+
+# Dataset paths
+images_dir: "/path/to/platynereis/images"
+labels_dir: "/path/to/platynereis/labels"
+output_dir: "/path/to/output/platynereis_swinunetr"
+
+# Model configuration
+model_name: "SwinUNetR"
+use_pretrained: false
+
+# Training hyperparameters
+max_epochs: 50
+batch_size: 1
+learning_rate: 1e-3
+training_percent: 0.8
+validation_interval: 2
+
+# Data sampling
+sampling: true
+num_samples: 2
+sample_size: [64, 64, 64]
+
+# Data augmentation
+augmentation: true
+num_workers: 4
+
+# Loss function
+loss_function: "DiceCE"
+
+# Learning rate scheduler
+scheduler_factor: 0.5
+scheduler_patience: 10
+
+# Deterministic training
+deterministic: true
+seed: 34936339
+
+# Device
+device: "cuda:0"
+
