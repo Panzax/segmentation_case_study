@@ -32,4 +32,4 @@ downsample: merging                         # Downsampling strategy (merging or 
 use_v2: false                               # Use SwinUNETR v2 with residual conv blocks
 
 # Loss function for training
-loss_fn: l2_masked
+loss_fn: generalized_dice
