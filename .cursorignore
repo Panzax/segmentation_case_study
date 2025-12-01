@@ -12,3 +12,5 @@ segment_3d
 *.env.development
 *.env.test
 *.env.production
+**/__pycache__/**
+**/benchmark_tests/**

@@ -11,3 +11,6 @@
 [submodule "cellseg3d"]
 	path = cellseg3d
 	url = git@github.com:panzax/CellSeg3D.git
+[submodule "swincell"]
+	path = swincell
+	url = git@github.com:panzax/SwinCell.git
