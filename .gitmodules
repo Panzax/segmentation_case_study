@@ -10,4 +10,4 @@
 	branch = dev
 [submodule "cellseg3d"]
 	path = cellseg3d
-	url = git@github.com:panzax/CellSeg3D.git
+	url = https://github.com/panzax/CellSeg3D.git
