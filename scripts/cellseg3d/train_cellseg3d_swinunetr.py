@@ -15,9 +15,10 @@ Usage:
 """
 
 import argparse
+import re
 import sys
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -39,7 +40,10 @@ logger = LOGGER
 
 
 def create_train_dataset_dict(
-    images_dir: Path, labels_dir: Path, file_extensions: Optional[List[str]] = None
+    images_dir: Path,
+    labels_dir: Path,
+    file_extensions: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
 ) -> List[dict]:
     """
     Create a training dataset dictionary compatible with CellSeg3D's format.
@@ -48,7 +52,8 @@ def create_train_dataset_dict(
         images_dir: Directory containing image volumes
         labels_dir: Directory containing label volumes
         file_extensions: List of file extensions to match (e.g., ['.tif', '.tiff', '.nii.gz'])
-
+        exclude: List of strings/regexes to exclude from the dataset
+        
     Returns:
         List of dicts with 'image' and 'label' keys, matching CellSeg3D's format
     """
@@ -59,6 +64,12 @@ def create_train_dataset_dict(
     image_files = []
     for ext in file_extensions:
         image_files.extend(list(images_dir.glob(f"*{ext}")))
+    
+    if exclude is not None:
+        image_files = [f for f in image_files if not any(re.match(pattern, f.name) for pattern in exclude)]
+        logger.info(f"Excluded {len(image_files)} files from the dataset")
+        for f in image_files:
+            logger.info(f"  {f.name}")
 
     if not image_files:
         raise ValueError(
@@ -92,16 +103,19 @@ def create_train_dataset_dict(
         
         # Strategy 3: Try numeric ID matching (e.g., c1image -> c1label)
         if label_path is None:
-            # Extract numeric part and common prefix
+            # Strategy 3: Try numeric ID matching (e.g., c1image -> c1label)
             stem = img_path.stem
-            # Try to find label with same prefix and number
-            for lab_file in labels_dir.glob(f"*{ext}"):
-                # Match if they share the same numeric ID
-                img_id = ''.join(filter(str.isdigit, stem))
-                lab_id = ''.join(filter(str.isdigit, lab_file.stem))
-                if img_id and img_id == lab_id:
-                    label_path = lab_file
-                    break
+            img_id = "".join(filter(str.isdigit, stem))
+            if img_id:
+                for lab_file in labels_dir.iterdir():
+                    if (
+                        lab_file.is_file()
+                        and lab_file.suffix in file_extensions
+                    ):
+                        lab_id = "".join(filter(str.isdigit, lab_file.stem))
+                        if img_id == lab_id:
+                            label_path = lab_file
+                            break
         
         if label_path is None:
             logger.warning(f"No matching label found for {img_path.name}, skipping")
@@ -125,8 +139,11 @@ def create_train_dataset_dict(
 
 def create_training_config(
     train_data_dict: List[dict],
+    val_data_dict: Optional[List[dict]],
     output_dir: Path,
     model_name: str = "SwinUNetR",
+    model_feature_size: int = 24,
+    model_depths: Tuple[int, int, int, int] = (2, 2, 2, 2),
     device: str = "cuda:0",
     max_epochs: int = 50,
     batch_size: int = 1,
@@ -135,7 +152,7 @@ def create_training_config(
     validation_interval: int = 2,
     sampling: bool = True,
     num_samples: int = 2,
-    sample_size: List[int] = None,
+    sample_size: Optional[List[int]] = None,
     do_augmentation: bool = True,
     num_workers: int = 4,
     scheduler_factor: float = 0.5,
@@ -146,12 +163,16 @@ def create_training_config(
     custom_weights_path: Optional[str] = None,
     deterministic: bool = True,
     seed: int = 34936339,
+    downsample_zoom: Optional[List[float]] = None,
 ) -> config.SupervisedTrainingWorkerConfig:
     """
     Create a SupervisedTrainingWorkerConfig with specified parameters.
 
     Args:
         train_data_dict: Dataset dictionary from create_train_dataset_dict
+        val_data_dict: Optional dataset dictionary for explicit validation set.
+            When provided, this is used as the validation set instead of
+            creating an internal split from train_data_dict.
         output_dir: Directory to save checkpoints and logs
         model_name: Name of the model (must be in config.MODEL_LIST)
         device: Device to use ('cuda:0', 'cpu', etc.)
@@ -173,6 +194,9 @@ def create_training_config(
         custom_weights_path: Path to custom weights file (if use_custom_weights=True)
         deterministic: Whether to use deterministic training
         seed: Random seed (if deterministic=True)
+        downsample_zoom: Optional downsampling factors [Z, Y, X] applied before patch
+            extraction/padding. For example, [1.0, 0.5, 0.5] keeps Z unchanged and
+            downsamples Y and X by 2x. When None, no downsampling is applied.
 
     Returns:
         Configured SupervisedTrainingWorkerConfig
@@ -181,7 +205,16 @@ def create_training_config(
         sample_size = [64, 64, 64]
 
     # Create model info
-    model_info = config.ModelInfo(name=model_name)
+    model_kwargs = {}
+    if model_feature_size is not None:
+        # Forwarded to SwinUNETR wrappers, which in turn pass it to MONAI
+        # SwinUNETR. This lets us sweep model size without touching the
+        # worker logic.
+        model_kwargs["feature_size"] = model_feature_size
+    if model_depths is not None:
+        model_kwargs["depths"] = model_depths
+
+    model_info = config.ModelInfo(name=model_name, model_kwargs=model_kwargs)
 
     # Create weights info
     weights_info = config.WeightsInfo(
@@ -202,6 +235,7 @@ def create_training_config(
         model_info=model_info,
         weights_info=weights_info,
         train_data_dict=train_data_dict,
+        val_data_dict=val_data_dict,
         training_percent=training_percent,
         max_epochs=max_epochs,
         loss_function=loss_function,
@@ -217,6 +251,7 @@ def create_training_config(
         do_augmentation=do_augmentation,
         num_workers=num_workers,
         deterministic_config=det_config,
+        downsample_zoom=downsample_zoom,
     )
 
     return worker_config
@@ -246,10 +281,48 @@ def main():
         help="Directory to save checkpoints and logs",
     )
     parser.add_argument(
+        "--val_images_dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional directory containing validation image volumes. "
+            "If set, this directory is used for validation and "
+            "--images_dir is used for training."
+        ),
+    )
+    parser.add_argument(
+        "--val_labels_dir",
+        type=str,
+        default=None,
+        help=(
+            "Optional directory containing validation label volumes. "
+            "Must be provided when --val_images_dir is set."
+        ),
+    )
+    parser.add_argument(
         "--model_name",
+        "--model",
+        dest="model_name",
         type=str,
         default="SwinUNetR",
         help="Model name (must be in CellSeg3D MODEL_LIST)",
+    )
+    parser.add_argument(
+        "--feature_size",
+        type=int,
+        default=None,
+        help=(
+            "Base feature size for SwinUNETR variants "
+            "(e.g. 24, 48, 96) to sweep model capacity."
+        ),
+    )
+    parser.add_argument(
+        "--depths",
+        type=int,
+        nargs=4,
+        default=[2, 2, 2, 2],
+        metavar="DEPTH",
+        help="Depth of each stage in the model",
     )
     parser.add_argument(
         "--device",
@@ -355,6 +428,21 @@ def main():
         default=34936339,
         help="Random seed (if deterministic=True)",
     )
+    parser.add_argument(
+        "--downsample_zoom",
+        type=float,
+        nargs="+",
+        default=None,
+        metavar="FACTOR",
+        help=(
+            "Optional downsampling factors [Z Y X] applied before patch extraction/padding. "
+            "For example, '1.0 0.5 0.5' keeps Z unchanged and downsamples Y and X by 2x. "
+            "Can also provide a single value to apply to all axes. "
+            "When not provided, no downsampling is applied."
+        ),
+    )
+    # Internal validation is always enabled; explicit validation sets can be
+    # provided via --val_images_dir/--val_labels_dir.
 
     args = parser.parse_args()
 
@@ -362,12 +450,27 @@ def main():
     images_dir = Path(args.images_dir)
     labels_dir = Path(args.labels_dir)
     output_dir = Path(args.output_dir)
+    val_images_dir = Path(args.val_images_dir) if args.val_images_dir else None
+    val_labels_dir = Path(args.val_labels_dir) if args.val_labels_dir else None
 
     # Validate paths
     if not images_dir.exists():
         raise ValueError(f"Images directory does not exist: {images_dir}")
     if not labels_dir.exists():
         raise ValueError(f"Labels directory does not exist: {labels_dir}")
+    if (val_images_dir is not None) ^ (val_labels_dir is not None):
+        raise ValueError(
+            "Both --val_images_dir and --val_labels_dir must be provided "
+            "together when specifying an explicit validation set."
+        )
+    if val_images_dir is not None and not val_images_dir.exists():
+        raise ValueError(
+            f"Validation images directory does not exist: {val_images_dir}"
+        )
+    if val_labels_dir is not None and not val_labels_dir.exists():
+        raise ValueError(
+            f"Validation labels directory does not exist: {val_labels_dir}"
+        )
 
     logger.info("=" * 60)
     logger.info("CellSeg3D SwinUNETR Training")
@@ -387,18 +490,46 @@ def main():
         logger.info(f"  Sample size: {args.sample_size}")
     logger.info(f"Augmentation: {args.augmentation}")
     logger.info(f"Loss function: {args.loss_function}")
+    if val_images_dir is not None:
+        logger.info(f"Validation images directory: {val_images_dir}")
+        logger.info(f"Validation labels directory: {val_labels_dir}")
+
+    # Parse downsample_zoom argument
+    downsample_zoom = None
+    if args.downsample_zoom is not None:
+        if len(args.downsample_zoom) == 1:
+            # Single value applied to all axes
+            downsample_zoom = [args.downsample_zoom[0]] * 3
+        elif len(args.downsample_zoom) == 3:
+            downsample_zoom = list(args.downsample_zoom)
+        else:
+            raise ValueError(
+                f"downsample_zoom must be 1 or 3 values, got {len(args.downsample_zoom)}"
+            )
+        logger.info(f"Downsample zoom: {downsample_zoom} [Z, Y, X]")
+    else:
+        logger.info("Downsample zoom: None (no downsampling)")
+
     logger.info("=" * 60)
 
     # Create dataset dictionary
     logger.info("Creating dataset dictionary...")
     train_data_dict = create_train_dataset_dict(images_dir, labels_dir)
 
+    val_data_dict: Optional[List[dict]] = None
+    if val_images_dir is not None and val_labels_dir is not None:
+        logger.info("Creating validation dataset dictionary...")
+        val_data_dict = create_train_dataset_dict(val_images_dir, val_labels_dir)
+
     # Create training config
     logger.info("Creating training configuration...")
     worker_config = create_training_config(
         train_data_dict=train_data_dict,
+        val_data_dict=val_data_dict,
         output_dir=output_dir,
         model_name=args.model_name,
+        model_feature_size=args.feature_size,
+        model_depths=args.depths,
         device=args.device,
         max_epochs=args.max_epochs,
         batch_size=args.batch_size,
@@ -416,6 +547,7 @@ def main():
         custom_weights_path=args.custom_weights,
         deterministic=args.deterministic,
         seed=args.seed,
+        downsample_zoom=downsample_zoom,
     )
 
     # Create and run training worker

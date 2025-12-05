@@ -11,7 +11,7 @@
 set -eux
 
 MONAI_PATH="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/monai"
-CELLSEG3D_PATH="/clusterfs/nvme/martinalvarez/GitHub/CellSeg3D"
+CELLSEG3D_PATH="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/cellseg3d"
 
 echo "=========================================="
 echo "Setting up CellSeg3D environment"
@@ -43,7 +43,7 @@ pip install -e . --no-deps || pip install -e .
 # Verify installation
 echo ""
 echo "Verifying installation..."
-python /clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/scripts/verify_cellseg3d_setup.py
+python /clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/scripts/cellseg3d/verify_cellseg3d_setup.py
 
 echo ""
 echo "=========================================="
