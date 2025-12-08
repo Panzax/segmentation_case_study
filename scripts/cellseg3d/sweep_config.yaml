@@ -1,0 +1,67 @@
+# WandB Hyperparameter Sweep Configuration
+# This file defines which hyperparameters to sweep and the search strategy
+
+program: train_cellseg3d_swinunetr.py
+method: grid  # Options: grid, random, bayes
+# grid: exhaustive search over all combinations
+# random: random search
+# bayes: Bayesian optimization (requires wandb[extra])
+
+metric:
+  name: Validation/Batch Loss
+  goal: minimize
+
+parameters:
+  # Model architecture parameters
+  model_name:
+    values:
+      - SwinUNetR_Mlp_LeakyReLU
+      - SwinUNetR_SwiGLU_LeakyReLU
+      - SwinUNetR_Mlp_ReLUSquared
+      - SwinUNetR_SwiGLU_ReLUSquared
+  
+  feature_size:
+    values: [12, 24, 48]
+    # Smaller values = smaller model, faster training
+    # Larger values = larger model, better capacity
+  
+  depths:
+    # Note: WandB doesn't support tuples directly, so we'll use a string format
+    # and parse it in the training script
+    values:
+      - "[2, 2, 2, 2]"  # Base
+      - "[1, 1, 1, 1]"  # Shallow
+  
+  # Training hyperparameters
+  batch_size:
+    values: [1, 2, 4]
+  
+  learning_rate:
+    values: [1e-4, 5e-4, 1e-3, 2e-3]
+  
+  loss_function:
+    values:
+      - Generalized Dice
+  
+  # Learning rate scheduler parameters
+  scheduler_factor:
+    values: [0.3, 0.5, 0.7]
+  
+  scheduler_patience:
+    values: [5, 10, 15]
+
+# Example alternative: Random search with distributions
+# Uncomment and modify if you prefer random/bayesian search:
+#
+# method: random
+# parameters:
+#   learning_rate:
+#     distribution: log_uniform
+#     min: 1e-4
+#     max: 1e-2
+#   batch_size:
+#     distribution: categorical
+#     values: [1, 2, 4, 8]
+#   feature_size:
+#     distribution: categorical
+#     values: [12, 24, 48]

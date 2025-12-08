@@ -1,0 +1,43 @@
+# WandB Hyperparameter Sweep Configuration
+# Focused on learning rate optimization (feature_size is fixed per sweep)
+
+program: train_cellseg3d_swinunetr.py
+method: grid  # Options: grid, random, bayes
+
+metric:
+  name: Validation/Batch Loss
+  goal: minimize
+
+parameters:
+  # Model architecture parameters (fixed for this sweep)
+  model_name:
+    value: SwinUNetR_Mlp_LeakyReLU  # Can be changed via script
+  
+  feature_size:
+    # This will be set to a specific value when creating the sweep
+    # Use create_lr_sweep_config() function to set this
+    value: 12  # Placeholder, will be overridden
+  
+  depths:
+    value: [2, 2, 2, 2]  # Base
+  
+  # Training hyperparameters
+  batch_size:
+    value: 1  # Can be changed via script
+  
+  learning_rate:
+    # This is what we're optimizing
+    values: [1e-4, 5e-4, 1e-3, 2e-3, 5e-3]
+  
+  loss_function:
+    value: Generalized Dice
+  
+  # Learning rate scheduler parameters
+  scheduler_factor:
+    value: 0.5
+  
+  scheduler_patience:
+    value: 10
+
+# Note: Use sweep_lr_per_feature_size.py to create separate sweeps
+# for each feature size automatically.

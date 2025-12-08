@@ -22,6 +22,14 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
+# Try importing wandb for hyperparameter sweeps
+try:
+    import wandb
+
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -29,7 +37,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 try:
     from napari_cellseg3d import config
     from napari_cellseg3d.code_models.worker_training import SupervisedTrainingWorker
-    from napari_cellseg3d.utils import LOGGER, get_padding_dim
+    from napari_cellseg3d.utils import LOGGER
 except ImportError as e:
     print(f"Error importing CellSeg3D: {e}")
     print("Make sure CellSeg3D is installed in editable mode:")
@@ -441,10 +449,64 @@ def main():
             "When not provided, no downsampling is applied."
         ),
     )
+    parser.add_argument(
+        "--eval_only",
+        action="store_true",
+        help="Run evaluation-only mode: compute Dice metric on validation set without training",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        default=None,
+        help="Path to model checkpoint (.pth file) for evaluation (required when --eval_only is set)",
+    )
     # Internal validation is always enabled; explicit validation sets can be
     # provided via --val_images_dir/--val_labels_dir.
 
     args = parser.parse_args()
+    print(f"Args: {args}")
+
+    # If wandb is available and initialized (sweep mode), override args with wandb.config
+    if WANDB_AVAILABLE and wandb.run is not None:
+        sweep_config = wandb.config
+        logger.info("=" * 60)
+        logger.info("WandB Sweep Mode: Overriding args with wandb.config")
+        logger.info("=" * 60)
+        # Override hyperparameters from wandb.config
+        if "model_name" in sweep_config:
+            args.model_name = sweep_config.model_name
+        if "feature_size" in sweep_config:
+            args.feature_size = sweep_config.feature_size
+        if "depths" in sweep_config:
+            # Handle both list and string formats
+            depths_val = sweep_config.depths
+            if isinstance(depths_val, str):
+                import ast
+                args.depths = ast.literal_eval(depths_val)
+            else:
+                args.depths = depths_val
+        if "batch_size" in sweep_config:
+            args.batch_size = sweep_config.batch_size
+        if "learning_rate" in sweep_config:
+            args.learning_rate = sweep_config.learning_rate
+        if "max_epochs" in sweep_config:
+            args.max_epochs = sweep_config.max_epochs
+        if "loss_function" in sweep_config:
+            args.loss_function = sweep_config.loss_function
+        if "scheduler_factor" in sweep_config:
+            # Note: scheduler_factor is not a CLI arg, but we'll handle it in create_training_config
+            pass
+        if "scheduler_patience" in sweep_config:
+            # Note: scheduler_patience is not a CLI arg, but we'll handle it in create_training_config
+            pass
+        logger.info(f"  Model: {args.model_name}")
+        logger.info(f"  Feature size: {args.feature_size}")
+        logger.info(f"  Depths: {args.depths}")
+        logger.info(f"  Batch size: {args.batch_size}")
+        logger.info(f"  Learning rate: {args.learning_rate}")
+        logger.info(f"  Max epochs: {args.max_epochs}")
+        logger.info(f"  Loss function: {args.loss_function}")
+        logger.info("=" * 60)
 
     # Convert paths to Path objects
     images_dir = Path(args.images_dir)
@@ -472,7 +534,22 @@ def main():
             f"Validation labels directory does not exist: {val_labels_dir}"
         )
 
-    logger.info("=" * 60)
+    # Validate eval_only mode requirements
+    if args.eval_only:
+        if args.checkpoint is None:
+            raise ValueError(
+                "--checkpoint is required when --eval_only is set"
+            )
+        checkpoint_path = Path(args.checkpoint)
+        if not checkpoint_path.exists():
+            raise ValueError(
+                f"Checkpoint file does not exist: {checkpoint_path}"
+            )
+        logger.info("=" * 60)
+        logger.info("CellSeg3D SwinUNETR Evaluation-Only Mode")
+        logger.info("=" * 60)
+    else:
+        logger.info("=" * 60)
     logger.info("CellSeg3D SwinUNETR Training")
     logger.info("=" * 60)
     logger.info(f"Images directory: {images_dir}")
@@ -521,6 +598,16 @@ def main():
         logger.info("Creating validation dataset dictionary...")
         val_data_dict = create_train_dataset_dict(val_images_dir, val_labels_dir)
 
+    # Get scheduler hyperparameters from wandb.config if in sweep mode, otherwise use defaults
+    scheduler_factor = 0.5  # Default
+    scheduler_patience = 10  # Default
+    if WANDB_AVAILABLE and wandb.run is not None:
+        sweep_config = wandb.config
+        if "scheduler_factor" in sweep_config:
+            scheduler_factor = sweep_config.scheduler_factor
+        if "scheduler_patience" in sweep_config:
+            scheduler_patience = sweep_config.scheduler_patience
+
     # Create training config
     logger.info("Creating training configuration...")
     worker_config = create_training_config(
@@ -543,36 +630,66 @@ def main():
         num_workers=args.num_workers,
         loss_function=args.loss_function,
         use_pretrained=args.use_pretrained,
-        use_custom_weights=args.custom_weights is not None,
-        custom_weights_path=args.custom_weights,
+        use_custom_weights=args.custom_weights is not None or args.eval_only,
+        custom_weights_path=args.checkpoint if args.eval_only else args.custom_weights,
         deterministic=args.deterministic,
         seed=args.seed,
         downsample_zoom=downsample_zoom,
+        scheduler_factor=scheduler_factor,
+        scheduler_patience=scheduler_patience,
     )
 
     # Create and run training worker
     logger.info("Initializing training worker...")
     worker = SupervisedTrainingWorker(worker_config=worker_config)
 
-    logger.info("Starting training...")
-    logger.info("=" * 60)
+    if args.eval_only:
+        logger.info("Running evaluation-only mode...")
+        logger.info(f"Checkpoint: {args.checkpoint}")
+        logger.info("=" * 60)
 
-    # Run training (iterate over generator)
-    try:
-        for report in worker.train():
-            # Optionally log progress here
-            # The worker handles all logging internally
-            pass
-    except KeyboardInterrupt:
-        logger.warning("Training interrupted by user")
-    except Exception as e:
-        logger.error(f"Training failed with error: {e}", exc_info=True)
-        raise
+        try:
+            dice_score, loss_value, batch_losses = worker.evaluate_only()
+            logger.info("=" * 60)
+            logger.info("Evaluation completed!")
+            logger.info(f"Validation Dice score: {dice_score:.4f}")
+            if loss_value is not None:
+                logger.info(f"Validation Loss (average): {loss_value:.4f}")
+                if batch_losses:
+                    logger.info(
+                        f"  Per-batch losses: min={min(batch_losses):.4f}, "
+                        f"max={max(batch_losses):.4f}, "
+                        f"std={np.std(batch_losses):.4f}, "
+                        f"n_batches={len(batch_losses)}"
+                    )
+                    logger.info(
+                        f"  Batch losses available for downstream statistics "
+                        f"(e.g., box plots): {len(batch_losses)} values"
+                    )
+            logger.info("=" * 60)
+        except Exception as e:
+            logger.error(f"Evaluation failed with error: {e}", exc_info=True)
+            raise
+    else:
+        logger.info("Starting training...")
+        logger.info("=" * 60)
 
-    logger.info("=" * 60)
-    logger.info("Training completed!")
-    logger.info(f"Checkpoints saved to: {output_dir}")
-    logger.info("=" * 60)
+        # Run training (iterate over generator)
+        try:
+            for report in worker.train():
+                # Optionally log progress here
+                # The worker handles all logging internally
+                pass
+        except KeyboardInterrupt:
+            logger.warning("Training interrupted by user")
+        except Exception as e:
+            logger.error(f"Training failed with error: {e}", exc_info=True)
+            raise
+
+        logger.info("=" * 60)
+        logger.info("Training completed!")
+        logger.info(f"Checkpoints saved to: {output_dir}")
+        logger.info("=" * 60)
 
 
 if __name__ == "__main__":

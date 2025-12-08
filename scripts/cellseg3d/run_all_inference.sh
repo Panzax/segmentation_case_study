@@ -18,13 +18,13 @@
 SCRIPT_DIR="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/scripts/cellseg3d"
 
 # Paths to local monai and cellseg3d
-MONAI_PATH="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/monai"
-CELLSEG3D_PATH="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/cellseg3d"
+MONAI_PATH="/clusterfs/nvme/martinalvarez/GitHub/MONAI"
+CELLSEG3D_PATH="/clusterfs/nvme/martinalvarez/GitHub/CellSeg3D"
 
-CHECKPOINTS_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/train_swin_unetr_cellseg3d_combined_datasets/base_model"
-OUTPUT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/infer_swinunetr_cellseg3d_combined_datasets/base_model"
-IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_combined_datasets/val/images"
-CHECKPOINT_PATTERN="*best_metric.pth"
+CHECKPOINTS_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/train_swin_unetr_cellseg3d_mesoSPIM/feature_size_12"
+OUTPUT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/infer_swinunetr_cellseg3d_mesoSPIM/feature_size_12"
+IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_mesoSPIM/val/images"
+CHECKPOINT_PATTERN="*latest.pth"
 DEVICE="cuda:0"
 FILETYPE=".tif"
 EXTRA_ARGS=()
@@ -190,9 +190,11 @@ for CKPT in "${CHECKPOINTS[@]}"; do
         --model_name "$EFFECTIVE_MODEL_NAME"
         --device "$DEVICE"
         --filetype "$FILETYPE"
+        --feature_size 12
     )
 
     CMD+=("${EXTRA_ARGS[@]}")
+    echo "Running command: ${CMD[@]}"
 
     "${CMD[@]}"
 

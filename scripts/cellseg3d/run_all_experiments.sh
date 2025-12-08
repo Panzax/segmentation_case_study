@@ -12,15 +12,20 @@ CELLSEG3D_PATH="/clusterfs/nvme/martinalvarez/GitHub/segmentation_case_study/cel
 MODELS=("SwinUNetR_Mlp_LeakyReLU" "SwinUNetR_SwiGLU_LeakyReLU" "SwinUNetR_Mlp_ReLUSquared" "SwinUNetR_SwiGLU_ReLUSquared")
 
 # Paths to images and labels
-IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_combined_datasets/train/images"
-LABELS_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_combined_datasets/train/labels"
+IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_mesoSPIM/train/images"
+LABELS_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_mesoSPIM/train/labels"
 
-VALIDATION_IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_combined_datasets/val/images"
-VALIDATION_LABELS_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_combined_datasets/val/labels"
+VALIDATION_IMAGES_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_mesoSPIM/val/images"
+VALIDATION_LABELS_DIR="/clusterfs/nvme/segment_3d/tests/datasets/CellSeg3D_mesoSPIM/val/labels"
 
 
 # Path to output directory
-OUTPUT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/train_swin_unetr_cellseg3d_combined_datasets/feature_size_12"
+# EVAL_ONLY=False
+OUTPUT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/train_swin_unetr_cellseg3d_mesoSPIM"
+
+# EVAL_ONLY=True
+# OUTPUT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/eval_swin_unetr_cellseg3d_mesoSPIM/model_depths_1_1_1_1"
+# CHECKPOINT_DIR="/clusterfs/nvme/segment_3d/tests/supervised_models/train_swin_unetr_cellseg3d_mesoSPIM/model_depths_1_1_1_1"
 
 echo "============================================="
 echo " Starting CellSeg3D SwinUNETR experiments"
@@ -73,21 +78,64 @@ for MODEL in "${MODELS[@]}"; do
     echo ""
     echo "Running experiment with model: $MODEL"
     echo "---------------------------------------------"
+
+    # Base model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     python train_cellseg3d_swinunetr.py \
         --model $MODEL \
         --images_dir $IMAGES_DIR \
         --labels_dir $LABELS_DIR \
         --val_images_dir $VALIDATION_IMAGES_DIR \
         --val_labels_dir $VALIDATION_LABELS_DIR \
-        --output_dir $OUTPUT_DIR \
-        --depths 1 1 1 1
-        # --feature_size 12
+        --output_dir "$OUTPUT_DIR/base_model/" \
+        # --checkpoint "$CHECKPOINT_DIR/${MODEL}_latest.pth" \
+        # --batch_size 4 \
+        # --eval_only
     EXITCODE=$?
     if [ $EXITCODE -eq 0 ]; then
         echo "✓ Successfully ran experiment for model: $MODEL"
     else
         echo "✗ Error running experiment for model: $MODEL (exit code $EXITCODE)"
     fi
+
+    # Model depths 1 1 1 1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    python train_cellseg3d_swinunetr.py \
+        --model $MODEL \
+        --images_dir $IMAGES_DIR \
+        --labels_dir $LABELS_DIR \
+        --val_images_dir $VALIDATION_IMAGES_DIR \
+        --val_labels_dir $VALIDATION_LABELS_DIR \
+        --output_dir "$OUTPUT_DIR/model_depths_1_1_1_1/" \
+        --depths 1 1 1 1 
+        # --checkpoint "$CHECKPOINT_DIR/${MODEL}_latest.pth" \
+        # --batch_size 4 \
+        # --eval_only
+    EXITCODE=$?
+    if [ $EXITCODE -eq 0 ]; then
+        echo "✓ Successfully ran experiment for model: $MODEL"
+    else
+        echo "✗ Error running experiment for model: $MODEL (exit code $EXITCODE)"
+    fi
+
+    # Feature size 12 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    python train_cellseg3d_swinunetr.py \
+        --model $MODEL \
+        --images_dir $IMAGES_DIR \
+        --labels_dir $LABELS_DIR \
+        --val_images_dir $VALIDATION_IMAGES_DIR \
+        --val_labels_dir $VALIDATION_LABELS_DIR \
+        --output_dir "$OUTPUT_DIR/feature_size_12/" \
+        --feature_size 12 
+        # --checkpoint "$CHECKPOINT_DIR/${MODEL}_latest.pth" \
+        # --batch_size 4 \
+        # --eval_only
+    EXITCODE=$?
+    if [ $EXITCODE -eq 0 ]; then
+        echo "✓ Successfully ran experiment for model: $MODEL"
+    else
+        echo "✗ Error running experiment for model: $MODEL (exit code $EXITCODE)"
+    fi
+
+
     echo "---------------------------------------------"
 done
 

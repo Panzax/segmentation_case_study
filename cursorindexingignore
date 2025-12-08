@@ -4,6 +4,7 @@ benchmark_tests/
 segmentation_case_study/benchmark_tests/
 **/benchmark_tests
 benchmark_tests
+
 segment_3d/
 **/segment_3d/**
 /clusterfs/nvme/segment_3d/

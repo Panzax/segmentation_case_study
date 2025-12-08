@@ -156,3 +156,5 @@ wandb/
 plots/
 pyrightconfig.json
 results/
+notebooks/*.csv
+notebooks/*.png

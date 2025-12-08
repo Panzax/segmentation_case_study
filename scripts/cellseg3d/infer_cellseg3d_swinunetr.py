@@ -18,8 +18,9 @@ import argparse
 import sys
 from pathlib import Path
 from typing import List, Optional
-
+import logging
 import numpy as np
+from tifffile import imwrite
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -36,7 +37,10 @@ except ImportError as e:
     sys.exit(1)
 
 logger = LOGGER
-
+# Add stream handler to logger
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.INFO)
+logger.addHandler(stream_handler)
 
 def get_image_filepaths(images_dir: Path, file_extensions: Optional[List[str]] = None) -> List[str]:
     """
@@ -76,6 +80,8 @@ def create_inference_config(
     window_size: Optional[int] = 64,
     window_overlap: float = 0.25,
     model_input_size: Optional[int] = None,
+    model_feature_size: Optional[int] = None,
+    model_depths: Optional[List[int]] = None,
     filetype: str = ".tif",
     keep_on_cpu: bool = False,
     compute_stats: bool = False,
@@ -108,7 +114,7 @@ def create_inference_config(
         Configured InferenceWorkerConfig
     """
     # Create model info
-    model_info = config.ModelInfo(name=model_name)
+    model_info = config.ModelInfo(name=model_name, model_kwargs={"feature_size": model_feature_size, "depths": model_depths})
     if model_input_size is not None:
         model_info.model_input_size = [model_input_size, model_input_size, model_input_size]
 
@@ -184,6 +190,18 @@ def main():
         help="Model name (must be in CellSeg3D MODEL_LIST)",
     )
     parser.add_argument(
+        "--feature_size",
+        type=int,
+        default=24,
+        help="Feature size for SwinUNETR variants",
+    )
+    parser.add_argument(
+        "--depths",
+        type=list,
+        default=[2, 2, 2, 2],
+        help="Depths for SwinUNETR variants",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default="cuda:0",
@@ -204,7 +222,7 @@ def main():
     parser.add_argument(
         "--model_input_size",
         type=int,
-        default=None,
+        default=64,
         help="Model input size (if None, uses model default)",
     )
     parser.add_argument(
@@ -272,9 +290,13 @@ def main():
         logger.info("Sliding window: disabled")
     logger.info("=" * 60)
 
-    # Get image filepaths
+    # Get image filepaths (keep this list so we can map back to filenames)
     logger.info("Collecting image files...")
     images_filepaths = get_image_filepaths(images_dir)
+    if len(images_filepaths) == 0:
+        raise ValueError("No image files found in the images directory")
+    else:
+        logger.info(f"Found {len(images_filepaths)} image files")
 
     # Create inference config
     logger.info("Creating inference configuration...")
@@ -287,6 +309,8 @@ def main():
         window_size=args.window_size if args.window_size > 0 else None,
         window_overlap=args.window_overlap,
         model_input_size=args.model_input_size,
+        model_feature_size=args.feature_size,
+        model_depths=args.depths,
         filetype=args.filetype,
         keep_on_cpu=args.keep_on_cpu,
         compute_stats=args.compute_stats,
@@ -309,6 +333,23 @@ def main():
         for result in worker.inference():
             results.append(result)
             logger.info(f"Processed image {result.image_id + 1}/{len(images_filepaths)}")
+            # # Explicitly save semantic predictions for CLI usage.
+            # # The worker already saves internally for the napari plugin,
+            # # but we save here as well to guarantee deterministic outputs
+            # # for this script, independent of GUI logging / config.
+            # img_idx = result.image_id - 1
+            # if 0 <= img_idx < len(images_filepaths):
+            #     src_path = Path(images_filepaths[img_idx])
+            #     stem = src_path.stem
+            # else:
+            #     stem = f"image_{result.image_id}"
+
+            # out_name = f"{stem}_{args.model_name}_pred_{result.image_id}.tif"
+            # out_path = output_dir / out_name
+            # # Save prediction to disk; also print path so it always shows in CLI logs
+            # imwrite(str(out_path), result.semantic_segmentation.astype(np.float32))
+            # print(f"[infer_cellseg3d_swinunetr] Saved prediction to: {out_path}", flush=True)
+            # logger.info(f"Saved prediction to: {out_path}")
     except KeyboardInterrupt:
         logger.warning("Inference interrupted by user")
     except Exception as e:
