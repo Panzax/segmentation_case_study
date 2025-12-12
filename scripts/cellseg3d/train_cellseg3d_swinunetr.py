@@ -19,7 +19,7 @@ import re
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
-
+import noko
 import numpy as np
 
 # Try importing wandb for hyperparameter sweeps
@@ -638,10 +638,14 @@ def main():
         scheduler_factor=scheduler_factor,
         scheduler_patience=scheduler_patience,
     )
+    logger.info(f"Worker config: \n{worker_config}")
 
     # Create and run training worker
     logger.info("Initializing training worker...")
     worker = SupervisedTrainingWorker(worker_config=worker_config)
+    
+    logger.info("Initializing Noko logger...")
+    noko.init(runs_dir=str(output_dir / "noko_runs"))
 
     if args.eval_only:
         logger.info("Running evaluation-only mode...")
