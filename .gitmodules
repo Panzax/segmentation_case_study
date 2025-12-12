@@ -1,0 +1,8 @@
+[submodule "packages/CellSeg3D"]
+	path = packages/CellSeg3D
+	url = https://github.com/Panzax/CellSeg3D
+	branch = segmentation_case_study
+[submodule "packages/MONAI"]
+	path = packages/MONAI
+	url = https://github.com/Panzax/MONAI
+	branch = segmentation_case_study
