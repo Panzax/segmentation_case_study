@@ -20,3 +20,5 @@ segment_3d
 *.env.production
 **/__pycache__/**
 **/benchmark_tests/**
+scripts/Reproduce_Experiments/data/
+scripts/Reproduce_Experiments/data/**
