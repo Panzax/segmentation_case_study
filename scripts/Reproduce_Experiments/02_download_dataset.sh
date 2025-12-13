@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# 01_download_dataset.sh
+# 02_download_dataset.sh
 # =============================================================================
 # Downloads the CellSeg3D mesoSPIM dataset from Zenodo and organizes it into
 # train/val splits for reproducible experiments.
@@ -12,7 +12,7 @@
 # License: CC-BY-4.0
 #
 # Usage:
-#   ./01_download_dataset.sh [--output-dir /path/to/output]
+#   ./02_download_dataset.sh [--output-dir /path/to/output]
 #
 # =============================================================================
 
@@ -265,14 +265,7 @@ echo "============================================="
 echo " Download complete!"
 echo "============================================="
 echo ""
-echo "To use this dataset for training, run:"
-echo ""
-echo "  python scripts/cellseg3d/train_cellseg3d_swinunetr.py \\"
-echo "      --images_dir ${OUTPUT_DIR}/train/images \\"
-echo "      --labels_dir ${OUTPUT_DIR}/train/labels \\"
-echo "      --val_images_dir ${OUTPUT_DIR}/val/images \\"
-echo "      --val_labels_dir ${OUTPUT_DIR}/val/labels \\"
-echo "      --output_dir ./outputs"
+echo "Next step: Run ./03_convert_to_32bit.sh"
 echo ""
 echo "Citation:"
 echo "  Achard et al. (2024). CellSeg3D: Self-supervised 3D cell segmentation"

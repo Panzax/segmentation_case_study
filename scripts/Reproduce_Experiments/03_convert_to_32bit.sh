@@ -1,18 +1,19 @@
 #!/bin/bash
 # =============================================================================
-# 02_convert_to_32bit.sh
+# 03_convert_to_32bit.sh
 # =============================================================================
 # Converts all downloaded dataset images to 32-bit floating point format.
 #
-# This script verifies that all expected files from 01_download_dataset.sh
+# This script verifies that all expected files from 02_download_dataset.sh
 # exist, then uses convert_images_to_32bit.py to convert them in place.
 #
 # Prerequisites:
-#   - Run 01_download_dataset.sh first
-#   - Python with tifffile and numpy installed
+#   - Run 01_setup_environment.sh first
+#   - Run 02_download_dataset.sh first
+#   - Activate conda environment: conda activate segproj
 #
 # Usage:
-#   ./02_convert_to_32bit.sh
+#   ./03_convert_to_32bit.sh
 #
 # =============================================================================
 
@@ -95,8 +96,8 @@ if [[ ! -d "${DATA_DIR}" ]]; then
     echo ""
     echo "Error: Data directory not found at ${DATA_DIR}"
     echo ""
-    echo "Please run 01_download_dataset.sh first:"
-    echo "  ./01_download_dataset.sh"
+    echo "Please run 02_download_dataset.sh first:"
+    echo "  ./02_download_dataset.sh"
     exit 1
 fi
 
@@ -165,7 +166,7 @@ if [[ ${#MISSING_FILES[@]} -gt 0 ]]; then
         echo "  - ${missing}"
     done
     echo ""
-    echo "Please run 01_download_dataset.sh first to download the dataset."
+    echo "Please run 02_download_dataset.sh first to download the dataset."
     exit 1
 fi
 
@@ -242,6 +243,8 @@ print(f'Results: {success_count}/12 files are already float32')
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         echo ""
         echo "Skipping conversion. Images are already float32."
+        echo ""
+        echo "Next step: Run ./04_run_all_experiments.sh"
         exit 0
     fi
 fi
@@ -336,5 +339,7 @@ echo ""
 echo "All ${EXPECTED_TOTAL} files have been converted to 32-bit floating point."
 echo ""
 echo "Data location: ${DATA_DIR}"
+echo ""
+echo "Next step: Run ./04_run_all_experiments.sh"
 echo ""
 

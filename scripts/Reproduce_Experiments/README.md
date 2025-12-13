@@ -1,68 +1,89 @@
 # Reproduce Experiments
 
-This directory contains scripts to reproduce the experiments from this case study.
-Run each script sequentially to set up the environment, download data, and train models.
+This directory contains scripts to reproduce the SwinUNETR segmentation experiments from this case study.
 
-## Prerequisites
+## Requirements
 
-- Linux/macOS (or WSL on Windows)
-- Python 3.10+
-- CUDA-capable GPU (recommended)
+- **Linux** (the environment.yml contains Linux-specific packages)
+- Conda or Miniforge installed
+- CUDA-capable GPU
 - `wget` or `curl` for downloading
 - `unzip` for extracting archives
+
+> **Note:** These scripts are designed for Linux systems. The conda environment will not install correctly on Windows or macOS due to platform-specific dependencies.
 
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
-| `01_download_dataset.sh` | Downloads the CellSeg3D mesoSPIM dataset from Zenodo |
-| `02_convert_to_32bit.sh` | Converts all images to 32-bit floating point format |
+| `01_setup_environment.sh` | Creates conda environment `segproj` from `environment.yml` |
+| `02_download_dataset.sh` | Downloads mesoSPIM dataset from [Zenodo](https://zenodo.org/records/11095111) |
+| `03_convert_to_32bit.sh` | Converts all images to 32-bit float (required for training) |
+| `04_run_all_experiments.sh` | Trains SwinUNETR with multiple model variants and seeds |
 
 ## Quick Start
 
 ```bash
-# 1. Make scripts executable
+# Navigate to this directory
+cd scripts/Reproduce_Experiments
+
+# Make all scripts executable
 chmod +x *.sh
 
-# 2. Download the dataset
-./01_download_dataset.sh
+# Step 1: Create conda environment (~10-30 min)
+./01_setup_environment.sh
+conda activate segproj
 
-# 3. Convert images to 32-bit (required for training)
-./02_convert_to_32bit.sh
+# Step 2: Download dataset from Zenodo (~30 MB)
+./02_download_dataset.sh
 
-# The dataset will be saved to: scripts/Reproduce_Experiments/data/CellSeg3D_mesoSPIM/
+# Step 3: Convert images to 32-bit float
+./03_convert_to_32bit.sh
+
+# Step 4: Run all training experiments (requires GPU)
+./04_run_all_experiments.sh
 ```
 
-## Dataset Information
+## Output Locations
 
-The mesoSPIM dataset is downloaded from [Zenodo (DOI: 10.5281/zenodo.11095111)](https://zenodo.org/records/11095111).
+- **Dataset:** `data/CellSeg3D_mesoSPIM/`
+- **Trained models:** `outputs/`
 
-**Structure after download:**
+## Dataset Structure
+
+After running `02_download_dataset.sh`:
+
 ```
-scripts/Reproduce_Experiments/data/CellSeg3D_mesoSPIM/
+data/CellSeg3D_mesoSPIM/
 ├── train/
-│   ├── images/
-│   │   ├── c1image.tif
-│   │   ├── c2image.tif
-│   │   ├── c3image.tif
-│   │   ├── c4image.tif
-│   │   └── v1image.tif
-│   └── labels/
-│       ├── c1label.tif
-│       ├── c2label.tif
-│       ├── c3label.tif
-│       ├── c4label.tif
-│       └── v1label.tif
+│   ├── images/   (5 files: c1-c4, v1)
+│   └── labels/   (5 files: c1-c4, v1)
 └── val/
-    ├── images/
-    │   └── c5image.tif
-    └── labels/
-        └── c5label.tif
+    ├── images/   (1 file: c5)
+    └── labels/   (1 file: c5)
+```
+
+## Experiments
+
+The `04_run_all_experiments.sh` script trains:
+
+- **Models:** SwinUNetR_Mlp_LeakyReLU, SwinUNetR_SwiGLU_LeakyReLU, SwinUNetR_Mlp_ReLUSquared, SwinUNetR_SwiGLU_ReLUSquared
+- **Seeds:** 34936339, 42, 1, 123456789
+- **Configurations:** base model, depths 1-1-1-1, feature_size 12
+
+## Troubleshooting
+
+### Environment fails to install
+The `environment.yml` is Linux-specific. If you're on Windows/macOS, you'll need to manually install packages or use WSL/Docker.
+
+### CUDA not available
+Ensure you have NVIDIA drivers and CUDA toolkit installed. Check with:
+```bash
+nvidia-smi
+python -c "import torch; print(torch.cuda.is_available())"
 ```
 
 ## Citation
-
-If you use this dataset, please cite:
 
 ```bibtex
 @article{10.7554/eLife.99848,
@@ -76,4 +97,3 @@ If you use this dataset, please cite:
 ```
 
 Dataset DOI: [10.5281/zenodo.11095111](https://doi.org/10.5281/zenodo.11095111)
-
