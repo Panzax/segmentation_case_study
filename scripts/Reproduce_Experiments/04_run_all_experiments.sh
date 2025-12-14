@@ -43,7 +43,7 @@ OUTPUT_DIR="${REPRODUCE_DIR}/outputs"
 MODELS=("SwinUNetR_Mlp_LeakyReLU" "SwinUNetR_SwiGLU_LeakyReLU" "SwinUNetR_Mlp_ReLUSquared" "SwinUNetR_SwiGLU_ReLUSquared")
 
 # Seeds for reproducibility
-SEEDS=(34936339 42 1 123456789)
+SEED=34936339
 
 # -----------------------------------------------------------------------------
 # Verify prerequisites
@@ -111,68 +111,63 @@ cd "$TRAIN_SCRIPT_DIR"
 
 # Run all experiments
 echo "---------------------------------------------"
-for SEED in "${SEEDS[@]}"; do
-    for MODEL in "${MODELS[@]}"; do
-        echo ""
-        echo "Running experiment with model: $MODEL"
-        echo "---------------------------------------------"
+for MODEL in "${MODELS[@]}"; do
+    echo ""
+    echo "Running experiment with model: $MODEL"
+    echo "---------------------------------------------"
 
-        # Base model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        python train_cellseg3d_swinunetr.py \
-            --model $MODEL \
-            --images_dir $IMAGES_DIR \
-            --labels_dir $LABELS_DIR \
-            --val_images_dir $VALIDATION_IMAGES_DIR \
-            --val_labels_dir $VALIDATION_LABELS_DIR \
-            --output_dir "$OUTPUT_DIR/$SEED/base_model/" \
-            --seed $SEED 
-            # --checkpoint "$CHECKPOINT_DIR/${MODEL}_latest.pth" \
-            # --batch_size 4 \
-            # --eval_only
-        EXITCODE=$?
-        if [ $EXITCODE -eq 0 ]; then
-            echo "[OK] Successfully ran base model experiment for: $MODEL (seed: $SEED)"
-        else
-            echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
-        fi
+    # Base model ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    python train_cellseg3d_swinunetr.py \
+        --model $MODEL \
+        --images_dir $IMAGES_DIR \
+        --labels_dir $LABELS_DIR \
+        --val_images_dir $VALIDATION_IMAGES_DIR \
+        --val_labels_dir $VALIDATION_LABELS_DIR \
+        --output_dir "$OUTPUT_DIR/base_model/" \
+        --seed $SEED
+    EXITCODE=$?
+    if [ $EXITCODE -eq 0 ]; then
+        echo "[OK] Successfully ran base model experiment for: $MODEL (seed: $SEED)"
+    else
+        echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
+    fi
 
-        # Model depths 1 1 1 1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        python train_cellseg3d_swinunetr.py \
-            --model $MODEL \
-            --images_dir $IMAGES_DIR \
-            --labels_dir $LABELS_DIR \
-            --val_images_dir $VALIDATION_IMAGES_DIR \
-            --val_labels_dir $VALIDATION_LABELS_DIR \
-            --output_dir "$OUTPUT_DIR/$SEED/model_depths_1_1_1_1/" \
-            --depths 1 1 1 1 \
-            --seed $SEED
-        EXITCODE=$?
-        if [ $EXITCODE -eq 0 ]; then
-            echo "[OK] Successfully ran depths 1-1-1-1 experiment for: $MODEL (seed: $SEED)"
-        else
-            echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
-        fi
+    # Model depths 1 1 1 1 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    python train_cellseg3d_swinunetr.py \
+        --model $MODEL \
+        --images_dir $IMAGES_DIR \
+        --labels_dir $LABELS_DIR \
+        --val_images_dir $VALIDATION_IMAGES_DIR \
+        --val_labels_dir $VALIDATION_LABELS_DIR \
+        --output_dir "$OUTPUT_DIR/model_depths_1_1_1_1/" \
+        --depths 1 1 1 1 \
+        --seed $SEED
+    EXITCODE=$?
+    if [ $EXITCODE -eq 0 ]; then
+        echo "[OK] Successfully ran depths 1-1-1-1 experiment for: $MODEL (seed: $SEED)"
+    else
+        echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
+    fi
 
-        # Feature size 12 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        python train_cellseg3d_swinunetr.py \
-            --model $MODEL \
-            --images_dir $IMAGES_DIR \
-            --labels_dir $LABELS_DIR \
-            --val_images_dir $VALIDATION_IMAGES_DIR \
-            --val_labels_dir $VALIDATION_LABELS_DIR \
-            --output_dir "$OUTPUT_DIR/$SEED/feature_size_12/" \
-            --feature_size 12 \
-            --seed $SEED
-        EXITCODE=$?
-        if [ $EXITCODE -eq 0 ]; then
-            echo "[OK] Successfully ran feature_size 12 experiment for: $MODEL (seed: $SEED)"
-        else
-            echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
-        fi
+    # Feature size 12 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    python train_cellseg3d_swinunetr.py \
+        --model $MODEL \
+        --images_dir $IMAGES_DIR \
+        --labels_dir $LABELS_DIR \
+        --val_images_dir $VALIDATION_IMAGES_DIR \
+        --val_labels_dir $VALIDATION_LABELS_DIR \
+        --output_dir "$OUTPUT_DIR/feature_size_12/" \
+        --feature_size 12 \
+        --seed $SEED
+    EXITCODE=$?
+    if [ $EXITCODE -eq 0 ]; then
+        echo "[OK] Successfully ran feature_size 12 experiment for: $MODEL (seed: $SEED)"
+    else
+        echo "[FAIL] Error running experiment for model: $MODEL (exit code $EXITCODE)"
+    fi
 
 
-        echo "---------------------------------------------"
-    done
+    echo "---------------------------------------------"
 done
 
 echo ""
