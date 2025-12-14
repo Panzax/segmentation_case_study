@@ -1,6 +1,10 @@
 # Reproduce Experiments
 
-This directory contains scripts to reproduce the SwinUNETR segmentation experiments from this case study.
+This directory contains scripts to reproduce the SwinUNETR segmentation experiments from this case study:
+
+```
+scripts/Reproduce_Experiments
+```
 
 ## Requirements
 
@@ -19,7 +23,7 @@ This directory contains scripts to reproduce the SwinUNETR segmentation experime
 | `01_setup_environment.sh` | Creates conda environment `segproj` from `environment.yml` |
 | `02_download_dataset.sh` | Downloads mesoSPIM dataset from [Zenodo](https://zenodo.org/records/11095111) |
 | `03_convert_to_32bit.sh` | Converts all images to 32-bit float (required for training) |
-| `04_run_all_experiments.sh` | Trains SwinUNETR with multiple model variants and seeds |
+| `04_run_all_experiments.sh` | Trains SwinUNETR with multiple model variants |
 
 ## Quick Start
 
@@ -42,6 +46,13 @@ conda activate segproj
 
 # Step 4: Run all training experiments (requires GPU)
 ./04_run_all_experiments.sh
+```
+
+## Plots
+
+To plot the training and validation loss, see the following notebook:
+```
+scripts/Reproduce_Experiments/plots.ipynb
 ```
 
 ## Output Locations
@@ -68,7 +79,6 @@ data/CellSeg3D_mesoSPIM/
 The `04_run_all_experiments.sh` script trains:
 
 - **Models:** SwinUNetR_Mlp_LeakyReLU, SwinUNetR_SwiGLU_LeakyReLU, SwinUNetR_Mlp_ReLUSquared, SwinUNetR_SwiGLU_ReLUSquared
-- **Seeds:** 34936339, 42, 1, 123456789
 - **Configurations:** base model, depths 1-1-1-1, feature_size 12
 
 ## Troubleshooting
