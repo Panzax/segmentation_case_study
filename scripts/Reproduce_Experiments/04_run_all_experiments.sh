@@ -26,8 +26,8 @@ REPO_ROOT="$(cd "${REPRODUCE_DIR}/../.." && pwd)"
 TRAIN_SCRIPT_DIR="${REPO_ROOT}/scripts/cellseg3d"
 
 # Paths to local monai and cellseg3d
-MONAI_PATH="${REPO_ROOT}/monai"
-CELLSEG3D_PATH="${REPO_ROOT}/cellseg3d"
+MONAI_PATH="${REPO_ROOT}/packages/MONAI"
+CELLSEG3D_PATH="${REPO_ROOT}/packages/CellSeg3D"
 
 # Dataset paths (from 01_download_dataset.sh)
 DATA_DIR="${REPRODUCE_DIR}/data/CellSeg3D_mesoSPIM"
