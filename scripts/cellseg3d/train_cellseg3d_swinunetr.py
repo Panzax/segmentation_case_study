@@ -460,6 +460,11 @@ def main():
         default=None,
         help="Path to model checkpoint (.pth file) for evaluation (required when --eval_only is set)",
     )
+    parser.add_argument(
+        "--disable_wandb",
+        action="store_true",
+        help="Disable WandB logging (useful for environments without WandB credentials)",
+    )
     # Internal validation is always enabled; explicit validation sets can be
     # provided via --val_images_dir/--val_labels_dir.
 
@@ -643,6 +648,11 @@ def main():
     # Create and run training worker
     logger.info("Initializing training worker...")
     worker = SupervisedTrainingWorker(worker_config=worker_config)
+    
+    # Disable WandB if requested (useful for environments without WandB credentials)
+    if args.disable_wandb:
+        worker.wandb_config.mode = "disabled"
+        logger.info("WandB logging disabled")
     
     logger.info("Initializing Noko logger...")
     noko.init(runs_dir=str(output_dir / "noko_runs"))

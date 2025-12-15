@@ -124,7 +124,8 @@ for MODEL in "${MODELS[@]}"; do
         --val_images_dir $VALIDATION_IMAGES_DIR \
         --val_labels_dir $VALIDATION_LABELS_DIR \
         --output_dir "$OUTPUT_DIR/base_model/" \
-        --seed $SEED
+        --seed $SEED \
+        --disable_wandb
     EXITCODE=$?
     if [ $EXITCODE -eq 0 ]; then
         echo "[OK] Successfully ran base model experiment for: $MODEL (seed: $SEED)"
@@ -141,7 +142,8 @@ for MODEL in "${MODELS[@]}"; do
         --val_labels_dir $VALIDATION_LABELS_DIR \
         --output_dir "$OUTPUT_DIR/model_depths_1_1_1_1/" \
         --depths 1 1 1 1 \
-        --seed $SEED
+        --seed $SEED \
+        --disable_wandb
     EXITCODE=$?
     if [ $EXITCODE -eq 0 ]; then
         echo "[OK] Successfully ran depths 1-1-1-1 experiment for: $MODEL (seed: $SEED)"
@@ -158,7 +160,8 @@ for MODEL in "${MODELS[@]}"; do
         --val_labels_dir $VALIDATION_LABELS_DIR \
         --output_dir "$OUTPUT_DIR/feature_size_12/" \
         --feature_size 12 \
-        --seed $SEED
+        --seed $SEED \
+        --disable_wandb
     EXITCODE=$?
     if [ $EXITCODE -eq 0 ]; then
         echo "[OK] Successfully ran feature_size 12 experiment for: $MODEL (seed: $SEED)"
