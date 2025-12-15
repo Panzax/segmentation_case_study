@@ -48,6 +48,14 @@ conda activate segproj
 ./04_run_all_experiments.sh
 ```
 
+### NOTES:
+- If you are getting empty noko logs, try running the following command:
+
+```bash
+git submodule update --remote --init --recursive
+```
+- You will need to updated the paths in plots.ipynb to the correct paths on your system if you are not installing the repo to root.
+
 ## Plots
 
 To plot the training and validation loss, see the following notebook:
