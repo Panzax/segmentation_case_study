@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import List, Optional, Tuple
 import noko
 import numpy as np
+import datetime as dt
 
 # Try importing wandb for hyperparameter sweeps
 try:
@@ -143,6 +144,46 @@ def create_train_dataset_dict(
         logger.info(f"  ... and {len(data_dicts) - 5} more")
 
     return data_dicts
+
+
+def generate_noko_run_name(
+    model_name: str,
+    feature_size: Optional[int] = None,
+    depths: Optional[Tuple[int, int, int, int]] = None,
+    seed: int = 34936339,
+    eval_only: bool = False,
+) -> str:
+    """
+    Generate a descriptive run name for noko based on model configuration.
+    
+    Args:
+        model_name: Name of the model
+        feature_size: Feature size (if specified)
+        depths: Model depths tuple (if different from default)
+        seed: Random seed
+        eval_only: Whether this is an evaluation-only run
+        
+    Returns:
+        A descriptive run name string
+    """
+    parts = []
+    
+    if eval_only:
+        parts.append("eval")
+    
+    parts.append(model_name)
+    
+    if feature_size is not None:
+        parts.append(f"feat{feature_size}")
+    
+    if depths is not None and depths != (2, 2, 2, 2):
+        depths_str = "_".join(map(str, depths))
+        parts.append(f"depths{depths_str}")
+        
+    parts.append(f"seed{seed}")
+    parts.append(str(dt.datetime.now().strftime('%Y%m%d_%H%M%S')))
+    
+    return "_".join(parts)
 
 
 def create_training_config(
@@ -654,8 +695,18 @@ def main():
         worker.wandb_config.mode = "disabled"
         logger.info("WandB logging disabled")
     
+    # Generate descriptive run name based on model configuration
+    run_name = generate_noko_run_name(
+        model_name=args.model_name,
+        feature_size=args.feature_size,
+        depths=tuple(args.depths) if args.depths else None,
+        seed=args.seed,
+        eval_only=args.eval_only,
+    )
+    
     logger.info("Initializing Noko logger...")
-    noko.init(runs_dir=str(output_dir / "noko_runs"))
+    logger.info(f"Noko run name: {run_name}")
+    noko.init(runs_dir=str(output_dir / "noko_runs"), run_name=run_name)
 
     if args.eval_only:
         logger.info("Running evaluation-only mode...")
