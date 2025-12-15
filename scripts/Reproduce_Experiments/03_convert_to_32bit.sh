@@ -177,7 +177,7 @@ echo "All expected files found!"
 # -----------------------------------------------------------------------------
 print_step "Checking current data type..."
 
-SAMPLE_FILE="${DATA_DIR_WIN}\\train\\images\\c1image.tif"
+SAMPLE_FILE="${DATA_DIR_WIN}/train/images/c1image.tif"
 
 CURRENT_DTYPE=$(python -c "
 import tifffile
